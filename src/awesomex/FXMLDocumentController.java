@@ -6,6 +6,9 @@ import java.net.URL;
 import java.sql.*;
 import java.util.Random;
 import java.util.ResourceBundle;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.animation.KeyFrame;
@@ -39,6 +42,7 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import javax.swing.JFileChooser;
+import javax.swing.SwingUtilities;
 import jssc.SerialPort;
 import jssc.SerialPortException;
 
@@ -166,15 +170,12 @@ public class FXMLDocumentController implements Initializable {  // implement run
             run();
             Thread coins = new coinAcceptor();
             coins.start();
+
             ImageView iv = new ImageView(pauseImage);
             iv.setFitHeight(34);
             iv.setFitWidth(34);
             pause.setGraphic(iv);
 
-            songList.addEventFilter(KeyEvent.KEY_PRESSED, keyEvent -> {
-                System.out.println("Insert coin to select song");
-                songList.getSelectionModel().clearSelection();
-            });
         } catch (Exception e) {
             nowPlaying.setText("error in playing");
         }
@@ -450,7 +451,7 @@ public class FXMLDocumentController implements Initializable {  // implement run
     public Connection connectDB() { // making connection with sqlite database // 
         try {
             Class.forName("org.sqlite.JDBC");
-            Connection conn = DriverManager.getConnection("jdbc:sqlite:C:/Users/asabul/Documents/NetBeansProjects/AwesomeX-master/awesomexDB.db");
+            Connection conn = DriverManager.getConnection("jdbc:sqlite:C:/Users/asabul/Documents/NetBeansProjects/juke-box/awesomexDB.db");
             //System.out.println("connection estd...");
             return conn;
         } catch (Exception e) {
@@ -461,6 +462,7 @@ public class FXMLDocumentController implements Initializable {  // implement run
 
     @FXML
     private void addFavoriteButtonAction(ActionEvent event) {
+
         if (isFavorite(currentSong.getName())) {
             String sql = "DELETE FROM favorite WHERE name = ?";
             try {
@@ -484,6 +486,38 @@ public class FXMLDocumentController implements Initializable {  // implement run
             }
         }
     }
+
+//event to repopulate the current list to favorite
+    private void addFavoriteButtonAction() {
+
+        //get selected song
+        String s = songList.getSelectionModel().getSelectedItem();  // selection song from music playlist //
+        if (s != null && !s.isEmpty()) {
+            int selectedSong = songList.getSelectionModel().getSelectedIndex();
+            songFile = songs[selectedSong];
+
+          
+                String sql = "INSERT INTO favorite(name,path) VALUES(?,?)";
+                try {
+                    PreparedStatement pstmt = connect.prepareStatement(sql);
+                    pstmt.setString(1, s);
+                    currentSong = new File(s);
+                    pstmt.setString(2, currentSong.getAbsolutePath());
+                    pstmt.executeUpdate();
+                    addFavorite.setText("");
+                } catch (SQLException ex) {
+                    
+                    ex.printStackTrace();
+                    System.out.println("error");
+                }
+//            }
+                favoriteButtonAction(new ActionEvent());
+
+            //add to the fa
+        }
+    }
+
+    
 
     public boolean isFavorite(String song) {
         try {
@@ -511,7 +545,7 @@ public class FXMLDocumentController implements Initializable {  // implement run
     }
 
     //the bit where you wait requests from the arduino 
-    class coinAcceptor extends Thread {
+    public class coinAcceptor extends Thread {
 
         public void run() {
             try {
@@ -570,8 +604,11 @@ public class FXMLDocumentController implements Initializable {  // implement run
                                                         songList.getSelectionModel().clearSelection();
                                                         songList.getSelectionModel().select(currentSongIndex);
                                                         songList.scrollTo(currentSongIndex);
-                                                        selectedSong();
-                                                        playButtonAction();
+
+                                                        //add to favorites
+                                                        //repopulate the current playing list
+                                                        addFavoriteButtonAction();
+
                                                     });
                                                 } catch (Exception ex) {
                                                     Logger.getLogger(FXMLDocumentController.class.getName()).log(Level.SEVERE, null, ex);
@@ -627,6 +664,6 @@ public class FXMLDocumentController implements Initializable {  // implement run
             }
 
         }
-    }
 
+    }
 }
